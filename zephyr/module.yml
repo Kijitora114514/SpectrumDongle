@@ -1,0 +1,7 @@
+name: spectrum-dongle-uart
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    board_root: .
+

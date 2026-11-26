@@ -1,0 +1,40 @@
+if SHIELD_SPECTRUM_DONGLE_UART
+
+menuconfig SPECTRUM_DONGLE_UART
+    bool "Spectrum Dongle status UART"
+    default y
+    depends on ZMK_SPLIT_ROLE_CENTRAL
+    select SERIAL
+    select UART_ASYNC_API
+    help
+      Send the active layer name and up to five split peripheral battery
+      levels to an external display controller over a TX-only UART.
+
+if SPECTRUM_DONGLE_UART
+
+config SPECTRUM_DONGLE_UART_HEARTBEAT_MS
+    int "Full status heartbeat interval (ms)"
+    default 1000
+    range 250 60000
+    help
+      A complete snapshot is sent at this interval in addition to immediate
+      event-driven updates. This lets a receiver recover after a reset.
+
+config SPECTRUM_DONGLE_UART_START_DELAY_MS
+    int "Initial status delay (ms)"
+    default 500
+    range 0 10000
+
+config SPECTRUM_DONGLE_UART_LAYER_NAME_MAX_LEN
+    int "Maximum layer-name bytes sent"
+    default 32
+    range 8 64
+
+module = SPECTRUM_DONGLE_UART
+module-str = Spectrum Dongle UART
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # SPECTRUM_DONGLE_UART
+
+endif # SHIELD_SPECTRUM_DONGLE_UART
+

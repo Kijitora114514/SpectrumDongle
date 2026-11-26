@@ -1,0 +1,19 @@
+if SHIELD_SPECTRUM_DONGLE_UART
+
+config ZMK_SPLIT
+    default y
+
+config ZMK_SPLIT_ROLE_CENTRAL
+    default y
+
+config ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS
+    default 5
+
+config ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING
+    default y
+
+config SPECTRUM_DONGLE_UART
+    default y
+
+endif # SHIELD_SPECTRUM_DONGLE_UART
+
