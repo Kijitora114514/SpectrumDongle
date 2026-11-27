@@ -1,3 +1,0 @@
-config SHIELD_SPECTRUM_DONGLE_UART
-    def_bool $(shields_list_contains,spectrum_dongle_uart)
-

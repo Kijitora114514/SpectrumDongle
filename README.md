@@ -40,12 +40,12 @@ manifest:
     path: config
 ```
 
-ドングルのbuild entryへ `spectrum_dongle_uart` shieldを追加します。
+ドングルのbuild entryへ `SpectrumDongle` shieldを追加します。
 
 ```yaml
 include:
   - board: xiao_ble//zmk
-    shield: your_keyboard_dongle spectrum_dongle_uart
+    shield: your_keyboard_dongle SpectrumDongle
 ```
 
 レイヤー名はkeymapの `display-name` を使用します。空の場合はレイヤー番号を

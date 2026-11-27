@@ -1,4 +1,4 @@
-if SHIELD_SPECTRUM_DONGLE_UART
+if SHIELD_SPECTRUM_DONGLE
 
 menuconfig SPECTRUM_DONGLE_UART
     bool "Spectrum Dongle status UART"
@@ -36,5 +36,5 @@ source "subsys/logging/Kconfig.template.log_config"
 
 endif # SPECTRUM_DONGLE_UART
 
-endif # SHIELD_SPECTRUM_DONGLE_UART
+endif # SHIELD_SPECTRUM_DONGLE
 
