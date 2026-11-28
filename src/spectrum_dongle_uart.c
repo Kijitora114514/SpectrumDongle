@@ -26,9 +26,16 @@ LOG_MODULE_REGISTER(spectrum_dongle_uart,
                     CONFIG_SPECTRUM_DONGLE_UART_LOG_LEVEL);
 
 #define UART_NODE DT_CHOSEN(spectrum_dongle_uart)
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
 #define BATTERY_SLOT_COUNT 5
 #define BATTERY_UNKNOWN (-1)
 #define TX_BUFFER_SIZE 192
+#endif
+
+#if CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
+static const uint8_t self_test_snapshot[] =
+    "SD1\t0\t0\t99\t99\t-1\t-1\t-1\tUART TEST\n";
+#endif
 
 BUILD_ASSERT(DT_HAS_CHOSEN(spectrum_dongle_uart),
              "spectrum,dongle-uart chosen node is required");
@@ -36,11 +43,13 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(UART_NODE, okay),
              "Spectrum Dongle UART device must be enabled");
 
 static const struct device *const uart_device = DEVICE_DT_GET(UART_NODE);
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
 static atomic_t battery_levels[BATTERY_SLOT_COUNT];
 static atomic_t tx_busy;
 static atomic_t tx_dirty;
 static uint8_t tx_buffer[TX_BUFFER_SIZE];
 static uint32_t tx_sequence;
+#endif
 
 static void tx_work_handler(struct k_work *work);
 static void heartbeat_work_handler(struct k_work *work);
@@ -49,10 +58,13 @@ K_WORK_DELAYABLE_DEFINE(tx_work, tx_work_handler);
 K_WORK_DELAYABLE_DEFINE(heartbeat_work, heartbeat_work_handler);
 
 static void schedule_snapshot(k_timeout_t delay) {
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
     atomic_set(&tx_dirty, 1);
+#endif
     (void)k_work_reschedule(&tx_work, delay);
 }
 
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
 static size_t append_escaped_layer_name(uint8_t *destination, size_t capacity,
                                         const char *source) {
     size_t output = 0;
@@ -134,10 +146,17 @@ static int build_snapshot(void) {
     tx_buffer[length++] = '\n';
     return (int)length;
 }
+#endif
 
 static void tx_work_handler(struct k_work *work) {
     ARG_UNUSED(work);
 
+#if CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
+    for (size_t i = 0; i < sizeof(self_test_snapshot) - 1U; ++i) {
+        uart_poll_out(uart_device, self_test_snapshot[i]);
+    }
+    return;
+#else
     if (!atomic_cas(&tx_busy, 0, 1)) {
         return;
     }
@@ -161,6 +180,7 @@ static void tx_work_handler(struct k_work *work) {
     }
 
     ++tx_sequence;
+#endif
 }
 
 static void heartbeat_work_handler(struct k_work *work) {
@@ -172,6 +192,7 @@ static void heartbeat_work_handler(struct k_work *work) {
         K_MSEC(CONFIG_SPECTRUM_DONGLE_UART_HEARTBEAT_MS));
 }
 
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
 static void uart_callback(const struct device *device,
                           struct uart_event *event, void *user_data) {
     ARG_UNUSED(device);
@@ -221,6 +242,7 @@ ZMK_SUBSCRIPTION(spectrum_dongle_uart_layer, zmk_layer_state_changed);
 ZMK_LISTENER(spectrum_dongle_uart_battery, peripheral_battery_listener);
 ZMK_SUBSCRIPTION(spectrum_dongle_uart_battery,
                  zmk_peripheral_battery_state_changed);
+#endif
 
 static int spectrum_dongle_uart_init(void) {
     if (!device_is_ready(uart_device)) {
@@ -228,6 +250,7 @@ static int spectrum_dongle_uart_init(void) {
         return -ENODEV;
     }
 
+#if !CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST
     for (size_t i = 0; i < ARRAY_SIZE(battery_levels); ++i) {
         atomic_set(&battery_levels[i], BATTERY_UNKNOWN);
     }
@@ -237,6 +260,7 @@ static int spectrum_dongle_uart_init(void) {
         LOG_ERR("Failed to install UART callback (%d)", error);
         return error;
     }
+#endif
 
     schedule_snapshot(
         K_MSEC(CONFIG_SPECTRUM_DONGLE_UART_START_DELAY_MS));
@@ -245,7 +269,8 @@ static int spectrum_dongle_uart_init(void) {
         K_MSEC(CONFIG_SPECTRUM_DONGLE_UART_START_DELAY_MS +
                CONFIG_SPECTRUM_DONGLE_UART_HEARTBEAT_MS));
 
-    LOG_INF("Status UART ready on XIAO D6/P1.11");
+    LOG_INF("Status UART ready on XIAO D6/P1.11%s",
+            CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST ? " (self-test)" : "");
     return 0;
 }
 
