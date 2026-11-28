@@ -45,8 +45,6 @@ BUILD_ASSERT(DT_NODE_HAS_STATUS(UART_NODE, okay),
 static const struct device *const uart_device = DEVICE_DT_GET(UART_NODE);
 #if !defined(CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST)
 static atomic_t battery_levels[BATTERY_SLOT_COUNT];
-static atomic_t tx_busy;
-static atomic_t tx_dirty;
 static uint8_t tx_buffer[TX_BUFFER_SIZE];
 static uint32_t tx_sequence;
 #endif
@@ -58,9 +56,6 @@ K_WORK_DELAYABLE_DEFINE(tx_work, tx_work_handler);
 K_WORK_DELAYABLE_DEFINE(heartbeat_work, heartbeat_work_handler);
 
 static void schedule_snapshot(k_timeout_t delay) {
-#if !defined(CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST)
-    atomic_set(&tx_dirty, 1);
-#endif
     (void)k_work_reschedule(&tx_work, delay);
 }
 
@@ -157,28 +152,15 @@ static void tx_work_handler(struct k_work *work) {
     }
     return;
 #else
-    if (!atomic_cas(&tx_busy, 0, 1)) {
-        return;
-    }
-
-    atomic_set(&tx_dirty, 0);
     const int length = build_snapshot();
     if (length < 0) {
         LOG_ERR("Failed to build UART snapshot (%d)", length);
-        atomic_set(&tx_busy, 0);
         return;
     }
 
-    const int error = uart_tx(uart_device, tx_buffer, (size_t)length,
-                              SYS_FOREVER_US);
-    if (error != 0) {
-        LOG_WRN("UART TX start failed (%d)", error);
-        atomic_set(&tx_busy, 0);
-        atomic_set(&tx_dirty, 1);
-        (void)k_work_reschedule(&tx_work, K_MSEC(20));
-        return;
+    for (int i = 0; i < length; ++i) {
+        uart_poll_out(uart_device, tx_buffer[i]);
     }
-
     ++tx_sequence;
 #endif
 }
@@ -193,29 +175,6 @@ static void heartbeat_work_handler(struct k_work *work) {
 }
 
 #if !defined(CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST)
-static void uart_callback(const struct device *device,
-                          struct uart_event *event, void *user_data) {
-    ARG_UNUSED(device);
-    ARG_UNUSED(user_data);
-
-    switch (event->type) {
-    case UART_TX_DONE:
-        atomic_set(&tx_busy, 0);
-        if (atomic_get(&tx_dirty) != 0) {
-            (void)k_work_reschedule(&tx_work, K_NO_WAIT);
-        }
-        break;
-    case UART_TX_ABORTED:
-        LOG_WRN("UART TX aborted");
-        atomic_set(&tx_busy, 0);
-        atomic_set(&tx_dirty, 1);
-        (void)k_work_reschedule(&tx_work, K_MSEC(20));
-        break;
-    default:
-        break;
-    }
-}
-
 static int layer_state_listener(const zmk_event_t *event) {
     ARG_UNUSED(event);
     schedule_snapshot(K_NO_WAIT);
@@ -253,12 +212,6 @@ static int spectrum_dongle_uart_init(void) {
 #if !defined(CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST)
     for (size_t i = 0; i < ARRAY_SIZE(battery_levels); ++i) {
         atomic_set(&battery_levels[i], BATTERY_UNKNOWN);
-    }
-
-    const int error = uart_callback_set(uart_device, uart_callback, NULL);
-    if (error != 0) {
-        LOG_ERR("Failed to install UART callback (%d)", error);
-        return error;
     }
 #endif
 

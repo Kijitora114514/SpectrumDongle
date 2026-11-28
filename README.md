@@ -103,14 +103,12 @@ CONFIG_SPECTRUM_DONGLE_UART_START_DELAY_MS=500
 # レイヤー名として送信する最大バイト数
 CONFIG_SPECTRUM_DONGLE_UART_LAYER_NAME_MAX_LEN=32
 
-# nRF52840 UART0で非同期APIを有効化
-CONFIG_UART_0_ASYNC=y
 ```
 
 ### UART自己テスト
 
-`CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST=y`では、通常のレイヤー・電池状態と
-非同期UART送信を迂回し、D6/P1.11から毎秒次の固定フレームを送信します。
+`CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST=y`では、通常のレイヤー・電池状態を
+迂回し、D6/P1.11から毎秒次の固定フレームを送信します。
 
 ```text
 SD1\t0\t0\t99\t99\t-1\t-1\t-1\tUART TEST\n
@@ -119,10 +117,7 @@ SD1\t0\t0\t99\t99\t-1\t-1\t-1\tUART TEST\n
 受信画面に `UART TEST` と `99 99` が表示されたら、通常動作へ戻すため
 `CONFIG_SPECTRUM_DONGLE_UART_SELF_TEST=n`へ変更してください。
 
-通常モードではnRF UARTEのインスタンス別設定
-`CONFIG_UART_0_ASYNC=y`も必要です。これが無効な場合、UARTコールバックを
-登録できず、初回スナップショットとハートビートは開始されません。
-
-UART送信にはZephyrの非同期APIを使用します。ZMKイベントリスナー内では
-最新状態の保存とworkの予約だけを行い、UART完了待ちは行いません。
+通常モードと自己テストは、実機で確認済みのZephyrポーリングUART APIを
+共通で使用します。ZMKイベントリスナー内では最新状態の保存とworkの予約
+だけを行い、UART送信は遅延work内で実行します。
 

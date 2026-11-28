@@ -5,7 +5,6 @@ menuconfig SPECTRUM_DONGLE_UART
     default y
     depends on ZMK_SPLIT_ROLE_CENTRAL
     select SERIAL
-    select UART_ASYNC_API
     help
       Send the active layer name and up to five split peripheral battery
       levels to an external display controller over a TX-only UART.
@@ -16,8 +15,8 @@ config SPECTRUM_DONGLE_UART_SELF_TEST
     bool "Transmit a fixed UART self-test snapshot"
     default n
     help
-      Bypass ZMK status collection and the asynchronous UART API. Send a
-      fixed, protocol-valid SD1 snapshot once per heartbeat with uart_poll_out.
+      Bypass ZMK status collection. Send a fixed, protocol-valid SD1 snapshot
+      once per heartbeat with uart_poll_out.
       Use this only to verify the TX pin, wiring, receiver, and display path.
 
 config SPECTRUM_DONGLE_UART_HEARTBEAT_MS
